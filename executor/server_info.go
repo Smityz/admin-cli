@@ -27,9 +27,7 @@ import (
 	"github.com/pegasus-kv/admin-cli/tabular"
 )
 
-// ServerInfo command
-func ServerInfo(client *Client) error {
-
+func getServerInfo(client *Client) []interface{} {
 	nodes := client.Nodes.GetAllNodes(session.NodeTypeMeta)
 	nodes = append(nodes, client.Nodes.GetAllNodes(session.NodeTypeReplica)...)
 

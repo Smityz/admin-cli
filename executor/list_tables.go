@@ -28,8 +28,27 @@ import (
 	"github.com/pegasus-kv/admin-cli/tabular"
 )
 
-// ListTables command.
-func ListTables(client *Client, showDropped bool) error {
+type droppedTableStruct struct {
+	AppID          int32  `json:"ID"`
+	Name           string `json:"Name"`
+	PartitionCount int32  `json:"PartitionCount"`
+	DropTime       string `json:"DropTime"`
+	ExpireTime     string `json:"ExpireTime"`
+}
+
+type availableTableStruct struct {
+	AppID           int32  `json:"ID"`
+	Name            string `json:"Name"`
+	PartitionCount  int32  `json:"Partitions"`
+	UnHealthy       int32  `json:"Unhealthy"`
+	WriteUnHealthy  int32  `json:"WriteUnhealthy"`
+	ReadUnHealthy   int32  `json:"ReadUnhealthy"`
+	CreateTime      string `json:"CreateTime"`
+	WReqRateLimit   string `json:"WReqRateLimit"`
+	WBytesRateLimit string `json:"WBytesRateLimit"`
+}
+
+func listTables(client *Client, showDropped bool) ([]interface{}, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*10)
 	defer cancel()
 
@@ -44,27 +63,7 @@ func ListTables(client *Client, showDropped bool) error {
 		Status: status,
 	})
 	if err != nil {
-		return err
-	}
-
-	type droppedTableStruct struct {
-		AppID          int32  `json:"ID"`
-		Name           string `json:"Name"`
-		PartitionCount int32  `json:"PartitionCount"`
-		DropTime       string `json:"DropTime"`
-		ExpireTime     string `json:"ExpireTime"`
-	}
-
-	type availableTableStruct struct {
-		AppID           int32  `json:"ID"`
-		Name            string `json:"Name"`
-		PartitionCount  int32  `json:"Partitions"`
-		UnHealthy       int32  `json:"Unhealthy"`
-		WriteUnHealthy  int32  `json:"WriteUnhealthy"`
-		ReadUnHealthy   int32  `json:"ReadUnhealthy"`
-		CreateTime      string `json:"CreateTime"`
-		WReqRateLimit   string `json:"WReqRateLimit"`
-		WBytesRateLimit string `json:"WBytesRateLimit"`
+		return nil, err
 	}
 
 	var tbList []interface{}
@@ -72,7 +71,7 @@ func ListTables(client *Client, showDropped bool) error {
 		if status == admin.AppStatus_AS_AVAILABLE {
 			unHealthy, writeUnHealthy, readUnHealthy, err := getPartitionHealthyCount(client, tb)
 			if err != nil {
-				return err
+				return nil, err
 			}
 			tbList = append(tbList, availableTableStruct{
 				AppID:           tb.AppID,
@@ -94,11 +93,20 @@ func ListTables(client *Client, showDropped bool) error {
 				PartitionCount: tb.PartitionCount,
 			})
 		}
+	}
+	return tbList, nil
+}
 
+// ListTables command.
+func ListTables(client *Client, showDropped bool) error {
+
+	list, err := listTables(client, showDropped)
+	if err != nil {
+		return err
 	}
 
 	// formats into tabular
-	tabular.Print(client, tbList)
+	tabular.Print(client, list)
 	return nil
 }
 
